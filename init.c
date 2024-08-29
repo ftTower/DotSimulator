@@ -1,17 +1,18 @@
 #include "lifegame.h"
 
-bool    init_map(t_data *data)
+bool init_map(t_data *data)
 {
     t_map *new;
 
     new = malloc(sizeof(t_map));
     if (!new)
-        return (true);
+        return true;
     new->chunk = malloc(sizeof(t_chunk) * (data->sync->size_x + 1));
     new->chunk[data->sync->size_x] = NULL;
+    new->collectible = NULL;
     for (size_t x = 0; x < data->sync->size_x; x++) {
         new->chunk[x] = malloc(sizeof(t_chunk) * (data->sync->size_y + 1));
-        for(size_t y = 0; y < data->sync->size_y; y++)
+        for (size_t y = 0; y < data->sync->size_y; y++)
         {
             new->chunk[x][y].pos_x = x;
             new->chunk[x][y].pos_y = y;
@@ -20,13 +21,18 @@ bool    init_map(t_data *data)
         }
     }
     data->map = new;
+    pthread_mutex_init(&data->map->mutex, NULL);
     data->map->sync = data->sync;
-    return (false);
+    gen_collectible(data);
+    set_bool(&data->map->mutex, &data->map->refresh, true);
+    return false;
 }
 
 bool    init_dot(t_data *data)
 {
+    data->nb_dot = 0;
     data->dot = NULL;
+    pthread_mutex_init(&data->dots_mutex, NULL);
     return (false);
 }
 

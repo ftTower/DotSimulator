@@ -6,7 +6,7 @@ NAME				=	lifegame
 CFLAG				=	-Wall -Wextra -Werror -I./header/ -I./minilibx-linux/ -g3
 LDFLAGS 			= 	-L./minilibx-linux -lmlx_Linux -lmlx -lX11 -lXext
 
-SRC					=	main.c map_func.c img.c init.c dot.c
+SRC					=	main.c map_func.c img.c init.c dot.c dot_life.c get_set.c
 						
 CC					=	cc # Add this line
 

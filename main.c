@@ -24,6 +24,8 @@ void    print_term_map(t_data *data)
 void    free_all(t_data *data)
 {
     // print_term_map(data);
+    if (data->map->collectible)
+        free(data->map->collectible);
     free_images(data);
     free_dots(data);
     mlx_destroy_window(data->window->mlx_ptr, data->window->win_ptr);
@@ -42,7 +44,7 @@ int key_event(int keycode, t_data *data) {
     else if (keycode == 65438)
         res_map(data);
     else if (keycode == 65436)
-        gen_map(data, 2);
+        gen_map(data, 3);
     else if (keycode == 65451)
         add_dot(data);
     else if (keycode == 65453)
@@ -55,6 +57,7 @@ int key_event(int keycode, t_data *data) {
 
 void    loop(t_data *data)
 {
+    set_bool(&data->map->mutex, &data->map->refresh, true);
     mlx_key_hook(data->window->win_ptr, key_event, data);
     mlx_loop(data->window->mlx_ptr);
 }

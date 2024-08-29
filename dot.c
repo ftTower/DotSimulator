@@ -7,53 +7,58 @@ void free_dots(t_data *data)
     while (current)
     {
         tmp = current->next;
+        pthread_mutex_lock(&current->mutex);
+        current->alive = false;
+        pthread_mutex_unlock(&current->mutex);
+        usleep(100);
         pthread_join(current->thread, NULL);
+        pthread_mutex_destroy(&current->mutex);
         free(current);
         current = tmp;
     }
     data->dot = NULL;
 }
 
-void    gen_dot_pos(t_data *data, t_dot *dot)
+void gen_dot_pos(t_data *data, t_dot *dot)
 {
-    dot->pos_x = rand() % data->sync->size_x;
-    dot->pos_y = rand() % data->sync->size_y;
-    if (data->map->chunk[dot->pos_x][dot->pos_y].type == TYPE_EMPTY)
-        data->map->chunk[dot->pos_x][dot->pos_y].type = TYPE_DOT;
-    else
-        gen_dot_pos(data, dot);
-}
-
-void    *dot_life(void *in_data)
-{
-    t_dot *dot;
-
-    dot = (t_dot *)in_data;
-    while(dot->alive)
-    {
-        // printf("%ld im alive\n", dot->pos);
-        sleep(1);
+    pthread_mutex_lock(&data->map->mutex); // Lock the map's mutex to ensure thread safety
+    while(true){
+        dot->pos_x = rand() % data->sync->size_x;
+        dot->pos_y = rand() % data->sync->size_y;
+        pthread_mutex_lock(&data->map->chunk[dot->pos_x][dot->pos_y].mutex);
+        if (data->map->chunk[dot->pos_x][dot->pos_y].type == TYPE_EMPTY)
+        {
+            data->map->chunk[dot->pos_x][dot->pos_y].type = TYPE_DOT;
+            pthread_mutex_unlock(&data->map->chunk[dot->pos_x][dot->pos_y].mutex);
+            break;   
+        }
+        pthread_mutex_unlock(&data->map->chunk[dot->pos_x][dot->pos_y].mutex);
     }
-    return (NULL);
+    pthread_mutex_unlock(&data->map->mutex);
 }
 
-void set_dot_pos(t_data *data)
-{
-    size_t index = 0;
-    t_dot *current = data->dot;
-    while(current)
-    {
-        current->pos = index++;
-        current = current->next;
-    }
-}
+// void set_dot_pos(t_data *data)
+// {
+//     size_t index = 0;
+//     t_dot *current = data->dot;
+//     // t_dot *tmp;
+//     while(current)
+//     {
+//         pthread_mutex_lock(&current->mutex);
+//         current->pos = index++;
+//         pthread_mutex_unlock(&current->mutex);
+//         // tmp = current;
+//         current = current->next;
+        
+//     }
+// }
 
-t_dot   *get_last_dot(t_data *data)
+t_dot *get_last_dot(t_data *data)
 {
     t_dot *ret = data->dot;
-    while(ret->next)
+    while(ret && ret->next)
         ret = ret->next;
-    return (ret);
+    return ret;
 }
 
 void add_dot(t_data *data)
@@ -66,10 +71,16 @@ void add_dot(t_data *data)
     }
     new->pos_x = 0;
     new->pos_y = 0;
-    new->alive = true;
     new->map_ptr = data->map;
-    gen_dot_pos(data, new);
     new->next = NULL;
+    pthread_mutex_init(&new->mutex, NULL);
+
+    // Protect map access
+    gen_dot_pos(data, new);
+    set_bool(&data->map->mutex, &data->map->refresh, true);
+
+    // Protect list of dots
+    pthread_mutex_lock(&data->dots_mutex); // Assurez-vous que data->list_mutex est correctement initialisé
     if (!data->dot)
         data->dot = new;
     else
@@ -77,31 +88,55 @@ void add_dot(t_data *data)
         t_dot *current = data->dot;
         while (current->next)
             current = current->next;
+        pthread_mutex_lock(&current->mutex);
         current->next = new;
+        pthread_mutex_unlock(&current->mutex);
     }
-    int ret = pthread_create(&new->thread, NULL, dot_life, get_last_dot(data));
+    pthread_mutex_unlock(&data->dots_mutex);
+
+    int ret = pthread_create(&new->thread, NULL, dot_life, data);
     if (ret != 0)
+    {
+        perror("Failed to create dot thread");
+        pthread_mutex_destroy(&new->mutex);
         free(new);
+    }
 }
 
-void    del_dot(t_data *data)
+void del_dot(t_data *data)
 {
     if (!data->dot)
-        return ;
+        return;
+    data->nb_dot--;
     t_dot *current = data->dot;
     if (!current->next)
     {
+        pthread_mutex_lock(&data->map->chunk[current->pos_x][current->pos_y].mutex);
         data->map->chunk[current->pos_x][current->pos_y].type = TYPE_EMPTY;
+        pthread_mutex_unlock(&data->map->chunk[current->pos_x][current->pos_y].mutex);
+
+        pthread_mutex_lock(&current->mutex);
+        current->alive = false;
+        pthread_mutex_unlock(&current->mutex);
+        usleep(100);
         pthread_join(current->thread, NULL);
         free(current);
         data->dot = NULL;
+        set_bool(&data->map->mutex, &data->map->refresh, true);
         return;
     }
-    while(current->next->next)
+    while (current->next->next)
         current = current->next;
     t_dot *to_delete = current->next;
+    pthread_mutex_lock(&data->map->mutex);
     data->map->chunk[to_delete->pos_x][to_delete->pos_y].type = TYPE_EMPTY;
+    pthread_mutex_unlock(&data->map->mutex);
+    pthread_mutex_lock(&to_delete->mutex);
+    to_delete->alive = false;
+    pthread_mutex_unlock(&to_delete->mutex);
+    usleep(100);
     pthread_join(to_delete->thread, NULL);
     free(to_delete);
     current->next = NULL;
+    set_bool(&data->map->mutex, &data->map->refresh, true);
 }

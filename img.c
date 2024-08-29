@@ -60,17 +60,26 @@ void put_chunk(t_image *img, size_t x_pos, size_t y_pos, int color) {
 
 void refresh_map(t_data *data)
 {
+    bool refresh;
+    pthread_mutex_lock(&data->map->mutex);
+    refresh = data->map->refresh;
+    pthread_mutex_unlock(&data->map->mutex);
+    if (!refresh)
+        return ;
+    set_bool(&data->map->mutex, &data->map->refresh, false);
     add_image(data, create_image(data->window->mlx_ptr, data->sync->size_x * CHUNK_SIZE, data->sync->size_y * CHUNK_SIZE));
     
     for(size_t x = 0; x < data->sync->size_x; x++)
         for(size_t y = 0; y < data->sync->size_y ;y++ )
         {
-            if (data->map->chunk[x][y].type == TYPE_WALL)
-                put_chunk(data->window->image, x * CHUNK_SIZE, y * CHUNK_SIZE, 0x415164);
-            else if (data->map->chunk[x][y].type == TYPE_EMPTY)
-                put_chunk(data->window->image, x * CHUNK_SIZE, y * CHUNK_SIZE, 0xF5FFFA);
+            if (data->map->chunk[x][y].type == TYPE_EMPTY)
+                put_chunk(data->window->image, x * CHUNK_SIZE, y * CHUNK_SIZE, 0xFFFFFF);
+            else if (data->map->chunk[x][y].type == TYPE_WALL)
+                put_chunk(data->window->image, x * CHUNK_SIZE, y * CHUNK_SIZE, 0x000000);
             else if (data->map->chunk[x][y].type == TYPE_DOT)
                 put_chunk(data->window->image, x * CHUNK_SIZE, y * CHUNK_SIZE, 0xBB0A1E);
+            else if (data->map->chunk[x][y].type == TYPE_COLLECTIBLE)
+                put_chunk(data->window->image, x * CHUNK_SIZE, y * CHUNK_SIZE, 0x01ff05);
         }
     display_image(data->window->mlx_ptr, data->window->win_ptr, data->window->image, 0, 0);
 }
