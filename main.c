@@ -23,7 +23,7 @@ void    print_term_map(t_data *data)
 
 void    free_all(t_data *data)
 {
-    // print_term_map(data);
+    print_term_map(data);
     if (data->map->collectible)
         free(data->map->collectible);
     free_images(data);
@@ -57,10 +57,11 @@ int key_event(int keycode, t_data *data) {
 
 void    loop(t_data *data)
 {
-    set_bool(&data->map->mutex, &data->map->refresh, true);
     mlx_key_hook(data->window->win_ptr, key_event, data);
     mlx_loop(data->window->mlx_ptr);
 }
+
+
 
 int main(int argc, char **argv)
 {
@@ -71,6 +72,7 @@ int main(int argc, char **argv)
     else if (init_data(&data, argv))
         return (2);
     srand(time(NULL));
+    
     refresh_map(data);
     loop(data);
     return (free_all(data), 0);

@@ -11,7 +11,7 @@
 
 struct s_data;
 
-#define CHUNK_SIZE 15
+#define CHUNK_SIZE 50
 
 typedef enum e_type {
     TYPE_EMPTY,
@@ -79,8 +79,10 @@ typedef struct s_win {
 typedef struct s_data {
     t_map *map;
     t_win *window;
+
     t_dot *dot;
     pthread_mutex_t dots_mutex;
+    
     size_t nb_dot;
     t_sync *sync;
 } t_data;

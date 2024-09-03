@@ -37,22 +37,6 @@ void gen_dot_pos(t_data *data, t_dot *dot)
     pthread_mutex_unlock(&data->map->mutex);
 }
 
-// void set_dot_pos(t_data *data)
-// {
-//     size_t index = 0;
-//     t_dot *current = data->dot;
-//     // t_dot *tmp;
-//     while(current)
-//     {
-//         pthread_mutex_lock(&current->mutex);
-//         current->pos = index++;
-//         pthread_mutex_unlock(&current->mutex);
-//         // tmp = current;
-//         current = current->next;
-        
-//     }
-// }
-
 t_dot *get_last_dot(t_data *data)
 {
     t_dot *ret = data->dot;
@@ -73,14 +57,12 @@ void add_dot(t_data *data)
     new->pos_y = 0;
     new->map_ptr = data->map;
     new->next = NULL;
+    new->alive = true;
     pthread_mutex_init(&new->mutex, NULL);
 
-    // Protect map access
     gen_dot_pos(data, new);
-    set_bool(&data->map->mutex, &data->map->refresh, true);
 
-    // Protect list of dots
-    pthread_mutex_lock(&data->dots_mutex); // Assurez-vous que data->list_mutex est correctement initialisé
+    pthread_mutex_lock(&data->dots_mutex);
     if (!data->dot)
         data->dot = new;
     else
@@ -93,7 +75,7 @@ void add_dot(t_data *data)
         pthread_mutex_unlock(&current->mutex);
     }
     pthread_mutex_unlock(&data->dots_mutex);
-
+    set_bool(&data->map->mutex, &data->map->refresh, true);
     int ret = pthread_create(&new->thread, NULL, dot_life, data);
     if (ret != 0)
     {
@@ -101,6 +83,7 @@ void add_dot(t_data *data)
         pthread_mutex_destroy(&new->mutex);
         free(new);
     }
+    
 }
 
 void del_dot(t_data *data)
